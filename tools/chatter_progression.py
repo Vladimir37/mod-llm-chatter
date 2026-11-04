@@ -129,6 +129,12 @@ def fits(db, listener, entry) -> bool:
     )
 
 
+def profession_available(db, guid, profession) -> bool:
+    """The character can learn this profession yet. Always true here;
+    a progression add-on wraps this as it wraps fits()."""
+    return True
+
+
 def next_rumor_target(listeners: List[Dict]) -> Optional[Dict]:
     """The listener served least recently, marked as served now.
 

@@ -1,5 +1,28 @@
 # Changelog
 
+### 2026-11-03 - World Reactivity: Letters and Rumors
+
+* **Letters**: the world now writes to the player. Each letter is written
+  by the LLM from facts, arrives in the mailbox with a gift, and works
+  for offline characters too. Letters reach you after a dungeon (50%,
+  2-4 days) or a raid (4-6 days), after each zone's key quest (4-6 days),
+  from a bot who remembers you (every 7-10 days), from a trainer looking
+  for an apprentice (twice, at levels 5-25, with a starter kit), and from
+  a trainer sharing surplus materials for your skill (from level 25,
+  every 10-16 levels). Each dungeon, raid or quest writes to you once.
+* **Rumors**: friendly and neutral NPCs talk about what you did. A new
+  rumor is told at the first chance, then joins the rest once it has
+  reached you twice. Quest and dungeon rumors stay in their regions;
+  achievement rumors travel and come up by how rare the deed is. An NPC
+  either recognises you or passes it on as local news.
+* **New items**: 99 sale-only keepsakes, Rare from raids and Uncommon
+  otherwise, in a reserved entry block. Their names and descriptions are
+  translated into German, Spanish, French, Korean and Russian, and letters
+  name every gift the way the mailbox shows it.
+* **Settings**: `LLMChatter.Letters.*` and `LLMChatter.Rumors.*`, with
+  every letter and rumor type switchable alone and quieter values in the
+  quieter preset. Apply the new characters and world SQL.
+
 ### 2026-11-02 - Truer Bot Memories
 
 * **Memories stay true to the character and the world**: the memory

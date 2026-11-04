@@ -5140,6 +5140,78 @@ or themed subject that took the turn keeps it.
 | `LocationTopics.Chance` (callers without a conversation thread) | 40 | 40 | Bridge |
 | `Threads.LocationTopicWeight` | 40 | 40 | Bridge |
 
+## 13zb. World Reactivity: Letters and Rumors
+
+The world answers what a real player did, through two independent
+systems: `LLMChatter.Letters.Enable` and `LLMChatter.Rumors.Enable`.
+The flow and ownership are in the architecture doc. This section covers
+behavior.
+
+### Letters
+
+Each letter is written by the LLM from facts and arrives with a gift.
+Limits are `Letters.MaxChars` and `Letters.MaxSubjectChars`. The server
+has no body limit of its own, only the packet size.
+
+| Type | Trigger | Sender | Gift |
+|---|---|---|---|
+| Memories | Every 7-10 days, while the player is online | A bot with active memories of the player, outside their group | Common gift for level and class |
+| Dungeons | Achievement, 50%, 2-4 days later | From the table, by faction | From the table |
+| Raids | Achievement, 100%, 4-6 days later | From the table, by faction | New Rare item |
+| Quests | Turn-in, 100%, 4-6 days later | From the table, by faction or clan | From the table |
+| Starters | Random level in 5-15, then in 15-25 | A trainer for the player's race | Starter kit |
+| Professions | Level 25, then every 10-16 levels | A trainer for the player's race | Bundle for the player's skill |
+
+- A dungeon, raid or quest letter comes once per character, whichever
+  listed achievement or quest triggered it.
+- Memory letters give the bot's personality, tone and, in roleplay,
+  background to the prompt, and one random memory.
+- Common gifts respect level range, class fit and stack size, and skip a
+  companion pet the character already knows. Each kind of gift is equally
+  likely, so long tables do not dominate.
+- Starters need a free primary profession point and are about different
+  professions. A character past a level window skips that letter. A race
+  outside the trainer table gets a trainer of its faction.
+- Professions letters need a known profession with a gift table.
+  Gatherers have none, so a gatherer-only character gets no letter.
+
+### Rumors
+
+NPCs near the player speak rumors in ordinary proximity scenes. Only
+friendly or neutral NPCs tell them; playerbots and unfriendly or hostile
+NPCs never do.
+
+| Type | Unlocked by | Where |
+|---|---|---|
+| Achievements | Achievement | Anywhere |
+| Quests | Quest turn-in | The quest's regions |
+| Dungeons (and raids) | Achievement | The regions listed per faction |
+
+- Quest and dungeon rumors choose "addressed" or "recounted" at random,
+  then a phrasing. Addressed: the speaker recognises the player and
+  "The hero" becomes their name. Recounted: local news not linked to the
+  player.
+- Achievement rumors are addressed, use the Description and Notes, and
+  are weighted by Frequency. Notes that need facts are filled in: Aldor
+  or Scryers from reputation, the city from the achievement earned, the
+  faction's people by team.
+- A new rumor is fresh: it skips the ambient roll and wins over everything
+  else until `Rumors.FreshVoicings` lines have reached the player.
+- Older rumors, including deeds from before the feature, use
+  `Rumors.Chance` and rest for `Rumors.RepeatCooldownMinutes`.
+
+### Editing the content
+
+The tables are `tools/reactivity_letters.json`,
+`tools/reactivity_gifts.json` and `tools/reactivity_rumors.json`. New gift
+items also need a row in the world SQL, with a matching name.
+
+The tables hold stock 3.3.5 values and work with or without
+`mod-individual-progression`. Where the mod raises an item's required
+level, the live item decides, so a gift never arrives before it can be
+used. Achievements 684 and 533 only exist in practice with that mod, so
+their rows stay silent on a stock server.
+
 ## 14. JSON and Queue Contracts
 
 ### `QueueChatterEvent()`
@@ -5325,6 +5397,12 @@ its original format-reliability limitations.
 | `llm_chatter_race_names` | C++ (startup) | Python | Every race in `ChrRaces` with its `GetRaceName()` name; the bridge names races outside `RACE_NAMES` from it |
 
 ---
+| `llm_reactivity_inbox` | C++ | Python | Real players' deeds waiting for the bridge |
+| `llm_reactivity_letters` | Python | C++ + Python | Letters from scheduling to delivery |
+| `llm_reactivity_player_state` | Python | Python | Per-character letter pacing |
+| `llm_reactivity_rumors` | Python | Python | Rumors unlocked or told, and freshness |
+| `llm_reactivity_rumor_voicings` | Python | Python | Rumor lines waiting to be counted against delivery |
+| `llm_reactivity_fresh_rumor_zones` | Python | C++ + Python | Where a fresh rumor may be told |
 
 ## 16. Important Editing Rules
 

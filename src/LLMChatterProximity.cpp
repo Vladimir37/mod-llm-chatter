@@ -3,6 +3,7 @@
  */
 
 #include "LLMChatterProximity.h"
+#include "LLMChatterReactivity.h"
 
 #include "LLMChatterBossDialogue.h"
 #include "LLMChatterConfig.h"
@@ -2169,8 +2170,12 @@ void MaybeQueueProximityScene(Player* player)
 
     uint32 effectiveChance =
         ComputeEffectiveChance(player);
-    if (effectiveChance == 0
-        || urand(1, 100) > effectiveChance)
+    bool rolled = effectiveChance != 0
+        && urand(1, 100) <= effectiveChance;
+    // A new rumor is told at the first chance, so it does not wait
+    // for the ambient roll. Entity cooldowns still apply.
+    bool freshRumor = HasFreshRumorHere(player);
+    if (!rolled && !freshRumor)
         return;
 
     float radius = static_cast<float>(
@@ -2180,6 +2185,26 @@ void MaybeQueueProximityScene(Player* player)
     CollectNearbyBots(player, radius, candidates, true);
     CollectNearbyNPCs(player, radius, candidates);
     DeduplicateCandidates(candidates);
+
+    if (freshRumor)
+    {
+        // Only NPCs tell rumors, and no enemy tells them.
+        std::vector<ProximityCandidate> tellers;
+        for (auto const& candidate : candidates)
+        {
+            if (!candidate.isNPC)
+                continue;
+            std::string const disposition =
+                GetNPCDisposition(candidate.npc, player);
+            if (disposition == "friendly"
+                || disposition == "neutral")
+                tellers.push_back(candidate);
+        }
+        if (!tellers.empty())
+            candidates = std::move(tellers);
+        else if (!rolled)
+            return;
+    }
 
     if (candidates.empty())
         return;

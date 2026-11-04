@@ -13,6 +13,12 @@ from chatter_constants import (
     PROXIMITY_PLAYER_WEATHER_TOPICS,
     REACTION_TONES,
 )
+from chatter_reactive_rumors import (
+    RumorTopic,
+    pick_rumor,
+    record_voicing,
+    rumor_prompt_lines,
+)
 from chatter_proximity_pacing import proximity_line_delays
 from chatter_db import insert_chat_message
 from chatter_llm import call_llm
@@ -1045,6 +1051,8 @@ def _single_prompt(
             "Message must use 2-8 words and no more than 50 "
             "characters."
             if brief_casual
+            else "Message must be 12-25 words, natural and local."
+            if isinstance(topic, RumorTopic)
             else "Message must be 8-15 words, natural, local, "
             "and low-stakes."
         ),
@@ -1089,7 +1097,9 @@ def _single_prompt(
                 f"Speaker background: "
                 f"{speaker_backstory}"
             )
-    if not isinstance(extra.get('screenshot_observation'), dict):
+    if isinstance(topic, RumorTopic):
+        lines.extend(rumor_prompt_lines(topic, player_name))
+    elif not isinstance(extra.get('screenshot_observation'), dict):
         lines.append(f"Topic seed: {topic}")
 
     if player_message:
@@ -1144,6 +1154,7 @@ def _single_prompt(
 def _conversation_prompt(
     db, extra: Dict, participants: List[Dict],
     config: Optional[Dict] = None,
+    rumor: Optional[RumorTopic] = None,
 ) -> PromptParts:
     mode = get_chatter_mode(config or {})
     has_playerbot = any(
@@ -1171,6 +1182,8 @@ def _conversation_prompt(
             + "; playerbot angle: "
             + _pick_topic(PROXIMITY_PLAYER_CHAT_TOPICS, extra)
         )
+    if rumor is not None:
+        topic = None
     max_lines = max(
         2, min(
             int(extra.get('max_lines', 3) or 3),
@@ -1251,6 +1264,11 @@ def _conversation_prompt(
         "Keep the exchange brief.",
         "",
         *([f"Topic seed: {topic}"] if topic is not None else []),
+        *(
+            rumor_prompt_lines(
+                rumor, extra.get('player_name', 'the player')
+            ) if rumor is not None else []
+        ),
         f"Write EXACTLY {max_lines} messages.",
         "Speakers may address each other by name.",
     ]
@@ -1391,6 +1409,9 @@ def handle_proximity_say(db, client, config, event):
         _mark_event(db, event_id, 'skipped')
         return False
 
+    rumor = pick_rumor(db, config, extra, participants[:1])
+    if rumor is not None and rumor.addressed:
+        extra = {**extra, 'player_addressed': True}
     ok = _generate_single_line(
         db,
         client,
@@ -1398,8 +1419,14 @@ def handle_proximity_say(db, client, config, event):
         event_id,
         extra,
         participants[0],
+        topic=rumor,
         label='proximity_say',
     )
+    if ok:
+        record_voicing(
+            db, event_id,
+            int(extra.get('player_guid', 0) or 0), rumor,
+        )
     _mark_event(
         db, event_id,
         'completed' if ok else 'skipped',
@@ -1421,8 +1448,11 @@ def handle_proximity_conversation(
         _mark_event(db, event_id, 'skipped')
         return False
 
+    rumor = pick_rumor(db, config, extra, participants)
+    if rumor is not None and rumor.addressed:
+        extra = {**extra, 'player_addressed': True}
     prompt = _conversation_prompt(
-        db, extra, participants, config=config,
+        db, extra, participants, config=config, rumor=rumor,
     )
     max_lines = int(extra.get('max_lines', 3) or 3)
     # Each line needs ~60-80 tokens for JSON structure
@@ -1513,6 +1543,7 @@ def handle_proximity_conversation(
         )
         return fallback
 
+    record_voicing(db, event_id, player_guid, rumor)
     _mark_event(db, event_id, 'completed')
     return True
 
