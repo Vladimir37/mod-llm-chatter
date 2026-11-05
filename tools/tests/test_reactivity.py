@@ -596,6 +596,17 @@ class Rumors(unittest.TestCase):
         zones = db.inserted('llm_reactivity_fresh_rumor_zones')
         self.assertEqual([z[1] for z in zones], found[1]['zones'])
 
+    def test_home_ground_dungeons_stay_with_their_faction(self):
+        for key, silent in (
+            ('deadmines', 'Horde'), ('gnomeregan', 'Horde'),
+            ('shadowfang_keep', 'Alliance'),
+            ('scarlet_monastery', 'Alliance'), ('zulaman', 'Alliance'),
+        ):
+            row = data.rumor_by_key('dungeon', key)
+            speaking = 'Alliance' if silent == 'Horde' else 'Horde'
+            self.assertEqual(rumors.rumor_zones(row, 'dungeon', silent), [])
+            self.assertTrue(rumors.rumor_zones(row, 'dungeon', speaking))
+
     def test_achievement_rumor_is_told_anywhere(self):
         kind, row = data.rumor_for_achievement(1681)
         self.assertEqual(rumors.rumor_zones(row, kind, 'Alliance'), [0])

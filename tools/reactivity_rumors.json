@@ -1058,9 +1058,7 @@
     "alliance": [
      40
     ],
-    "horde": [
-     33
-    ]
+    "horde": []
    }
   },
   {
@@ -1084,9 +1082,7 @@
     "The lights in the tower of Shadowfang Keep have finally gone out."
    ],
    "zones": {
-    "alliance": [
-     267
-    ],
+    "alliance": [],
     "horde": [
      130
     ]
@@ -1201,9 +1197,7 @@
     "alliance": [
      1
     ],
-    "horde": [
-     1637
-    ]
+    "horde": []
    }
   },
   {
@@ -1256,9 +1250,7 @@
     "Prisoners brought to the monastery's inquisitors may finally be spared."
    ],
    "zones": {
-    "alliance": [
-     267
-    ],
+    "alliance": [],
     "horde": [
      85
     ]
@@ -2837,9 +2829,7 @@
     "The forest roads near Zul'Aman are safer."
    ],
    "zones": {
-    "alliance": [
-     1537
-    ],
+    "alliance": [],
     "horde": [
      3433,
      3487
