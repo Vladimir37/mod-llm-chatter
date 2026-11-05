@@ -67,7 +67,7 @@ from chatter_structured import (  # noqa: E402
     _build_schema,
 )
 
-LIMITS = {'body_chars': 900, 'subject_chars': 60}
+LIMITS = {'body_chars': 900, 'target_words': 112, 'subject_chars': 60}
 RECIPIENT = {
     'guid': 1, 'name': 'Ana', 'gender': 'female', 'race': 'Human',
     'class': 'Mage', 'level': 30,
@@ -196,6 +196,24 @@ class LetterText(unittest.TestCase):
             letters.clamp_body(text, 30), 'First sentence here.',
         )
 
+    def test_cut_keeps_the_sign_off(self):
+        text = 'One sentence. Two sentence. Three.\n\nFrom the Isle,\nMolthor'
+        self.assertEqual(
+            letters.clamp_body(text, 45),
+            'One sentence.\n\nFrom the Isle,\nMolthor',
+        )
+
+    def test_long_last_paragraph_is_not_a_sign_off(self):
+        tail = 'word ' * 30 + 'end.'
+        text = f'Opening line here.\n\n{tail}'
+        clamped = letters.clamp_body(text, 60)
+        self.assertLessEqual(len(clamped), 60)
+        self.assertTrue(clamped.startswith('Opening line here.'))
+
+    def test_length_is_asked_for_in_words_from_the_limit(self):
+        limits = letters._limits({'LLMChatter.Letters.MaxChars': 700})
+        self.assertEqual(limits['target_words'], 87)
+
     def test_short_body_is_untouched(self):
         self.assertEqual(letters.clamp_body('Hi.', 30), 'Hi.')
 
@@ -230,6 +248,7 @@ class Prompts(unittest.TestCase):
             sender, RECIPIENT, row, row['gift']['items'], LIMITS,
         )
         self.assertIn(row['letter'], prompt)
+        self.assertIn('at most 112 words', prompt)
         self.assertIn(row['origin'], prompt)
         self.assertIn('"subject"', prompt)
 
@@ -279,6 +298,49 @@ class Prompts(unittest.TestCase):
             bundle, LIMITS,
         )
         self.assertIn('Moon Pearl x2', prompt)
+
+    def test_profession_letters_do_not_all_open_alike(self):
+        bundle = {'items': self.items, 'what': 'For rings.'}
+        prompts = {
+            profession_letter_prompt(
+                {'name': 'Tor', 'place': 'x'}, 'Mining', RECIPIENT,
+                bundle, LIMITS,
+            )
+            for _ in range(50)
+        }
+        self.assertGreater(len(prompts), 1)
+        self.assertFalse(any('coming along' in text for text in prompts))
+
+    def test_profession_praise_rests_on_what_could_reach_the_writer(self):
+        bundle = {'items': self.items, 'what': 'For rings.'}
+        prompts = [
+            profession_letter_prompt(
+                {'name': 'Tor', 'place': 'x'}, 'Mining', RECIPIENT,
+                bundle, LIMITS,
+            )
+            for _ in range(50)
+        ]
+        self.assertTrue(all(
+            'never say you watched them' in text for text in prompts
+        ))
+        self.assertTrue(any('what people say' in text for text in prompts))
+        self.assertTrue(any('finished piece' in text for text in prompts))
+
+    def test_profession_gift_comes_with_the_letter(self):
+        prompt = profession_letter_prompt(
+            {'name': 'Tor', 'place': 'x'}, 'Mining', RECIPIENT,
+            {'items': self.items, 'what': 'For rings.'}, LIMITS,
+        )
+        self.assertIn('in with this letter', prompt)
+        self.assertIn('never ask them to come for them', prompt)
+
+    def test_subject_leaves_out_the_reader(self):
+        starter = data.gifts()['starters']['Mining']
+        prompt = starter_letter_prompt(
+            {'name': 'Tor', 'place': 'Goldshire'}, 'Mining', RECIPIENT,
+            starter, LIMITS,
+        )
+        self.assertIn("Never put the reader's name in it", prompt)
 
 
 class Scheduling(unittest.TestCase):

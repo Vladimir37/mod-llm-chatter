@@ -5,6 +5,7 @@ a gift came from; the model writes the letter around them, so two
 players who did the same thing still read different letters.
 """
 
+import random
 from typing import Dict, List
 
 from chatter_shared import get_language_rule
@@ -12,10 +13,11 @@ from chatter_shared import get_language_rule
 _FORMAT = (
     'Reply with JSON only: {{"subject": "...", "body": "..."}}.\n'
     'subject: a short letter subject, at most {subject_chars} '
-    'characters.\n'
-    'body: the whole letter as plain text, at most {body_chars} '
-    'characters. Separate paragraphs with a line break. End with a '
-    "sign-off in the writer's own name."
+    "characters. Never put the reader's name in it.\n"
+    'body: the whole letter as plain text, at most {target_words} '
+    'words: three short paragraphs, then the sign-off. Separate '
+    "paragraphs with a blank line. End with a sign-off in the "
+    "writer's own name."
 )
 
 _IN_WORLD_RULES = (
@@ -25,6 +27,32 @@ _IN_WORLD_RULES = (
     "Do not invent facts about what the reader did, felt or decided "
     "beyond what is given here. The changes described are only "
     "beginning, never finished."
+)
+
+# One is drawn per letter: given the same request, the model opens every
+# letter with the same sentence.
+_PROFESSION_OPENINGS = (
+    "Open with your own workshop: what has piled up in it and why it "
+    "is more than you can use.",
+    "Open with something the long years in this trade have taught you, "
+    "then turn to the reader.",
+    "Open with your own early days in the trade, and what supplies "
+    "like these would have meant to you then.",
+    "Open with the shipment or job that left you with more than you "
+    "need.",
+    "Open with the gift itself, plainly, and come to the praise after.",
+    "Open with what good work in this trade looks like to you, then "
+    "say the reader has it.",
+)
+
+# A trainer stays at their post while the reader works elsewhere, so
+# the praise must rest on something that could have reached them.
+_PROFESSION_PRAISE_SOURCES = (
+    "You know of it only from what people say of them: customers, "
+    "travellers or others in the trade.",
+    "You know of it only from something of theirs that reached you and "
+    "that you looked over yourself: a finished piece of work, or a "
+    "catch.",
 )
 
 
@@ -64,7 +92,7 @@ def _sender_line(sender: Dict) -> str:
 def _finish(lines: List[str], limits: Dict) -> str:
     lines.append(_FORMAT.format(
         subject_chars=limits['subject_chars'],
-        body_chars=limits['body_chars'],
+        target_words=limits['target_words'],
     ))
     prompt = '\n'.join(lines)
     return prompt + get_language_rule()
@@ -170,12 +198,17 @@ def profession_letter_prompt(
         f"You are {trainer['name']}, a {profession} trainer, writing a "
         "letter in World of Warcraft.",
         recipient_line(recipient),
-        f"You have heard how the reader's {profession} is coming along "
-        "and want to praise it.",
-        "You have more supplies than you need and are sending some of "
-        f"your surplus: {gift_text(bundle['items'])}.",
+        f"You think well of the reader's skill at {profession} and want "
+        f"to say so. {random.choice(_PROFESSION_PRAISE_SOURCES)} You live "
+        "far from them and have never seen them at work, so never say "
+        "you watched them.",
+        "You have more supplies than you need and have put some of your "
+        f"surplus in with this letter: {gift_text(bundle['items'])}. The "
+        "reader receives them with the letter, so never ask them to "
+        "come for them or to call on you.",
         f"What they are good for: {bundle['what']}",
-        "Praise them, then say what you are sending and why. Keep it "
+        random.choice(_PROFESSION_OPENINGS),
+        "Praise them and say what you have enclosed and why. Keep it "
         "warm and brief.",
         _IN_WORLD_RULES,
     ]

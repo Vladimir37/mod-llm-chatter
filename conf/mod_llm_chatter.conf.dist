@@ -5113,8 +5113,9 @@ LLMChatter.Letters.BatchSize = 3
 
 #
 #   LLMChatter.Letters.MaxChars
-#       Longest letter body. The server sets no limit of its own; the
-#       text is cut at the last full sentence within this length.
+#       Longest letter body. The server sets no limit of its own. The
+#       model is asked for one word per 8 of these, and anything over
+#       is cut at a full sentence, keeping the sign-off.
 #       Default: 900
 #
 LLMChatter.Letters.MaxChars = 900

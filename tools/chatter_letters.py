@@ -57,6 +57,10 @@ MAX_ATTEMPTS = 3
 RETRY_MINUTES = 10
 NO_BOT_RETRY_HOURS = 24
 STUCK_SENDING_MINUTES = 30
+# The model counts words far better than characters, and overruns
+# either. This many characters per word it is asked for leaves room.
+CHARS_PER_TARGET_WORD = 8
+MAX_SIGNOFF_CHARS = 100
 
 MANA_CLASSES = {
     'Paladin', 'Hunter', 'Priest', 'Shaman', 'Mage', 'Warlock', 'Druid',
@@ -147,15 +151,24 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-def clamp_body(text: str, limit: int) -> str:
-    """Cut at the last full sentence inside the limit."""
-    if len(text) <= limit:
-        return text
+def _cut_at_sentence(text: str, limit: int) -> str:
     cut = text[:limit]
     end = max(cut.rfind(mark) for mark in ('.', '!', '?', '\n'))
     if end >= limit // 2:
         return cut[:end + 1].rstrip()
     return cut.rstrip()
+
+
+def clamp_body(text: str, limit: int) -> str:
+    """Cut at the last full sentence inside the limit, keeping the
+    sign-off: a letter must still say who it is from."""
+    if len(text) <= limit:
+        return text
+    head, separator, tail = text.rpartition('\n\n')
+    if not head or len(tail) > MAX_SIGNOFF_CHARS:
+        return _cut_at_sentence(text, limit)
+    kept = _cut_at_sentence(head, limit - len(tail) - len(separator))
+    return f'{kept}{separator}{tail}'
 
 
 def clamp_subject(text: str, limit: int) -> str:
@@ -167,6 +180,7 @@ def _limits(config) -> Dict:
     body = _int(config, 'LLMChatter.Letters.MaxChars', 900)
     return {
         'body_chars': body,
+        'target_words': body // CHARS_PER_TARGET_WORD,
         'subject_chars': _int(
             config, 'LLMChatter.Letters.MaxSubjectChars', 60
         ),

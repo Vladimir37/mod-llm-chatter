@@ -411,8 +411,9 @@ Letters and rumors make the world answer what a real player did:
    a normal clear's chance.
 4. When a row comes due the pass writes it (structured `letter`
    response: subject and body), strips `|` because the core blanks text
-   holding `| |`, clamps it to `Letters.MaxChars` at a sentence end, and
-   marks it `ready`. Failed writes retry and then become `failed`.
+   holding `| |`, clamps it to `Letters.MaxChars` at a sentence end while
+   keeping the sign-off, and marks it `ready`. Failed writes retry and
+   then become `failed`.
 5. C++ polls `ready` rows every `Letters.DeliveryPollSeconds`, marks one
    `sending` with a direct write, then commits the items, the mail and
    `sent` in one transaction. The direct write stops the next poll seeing
